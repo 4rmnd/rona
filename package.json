@@ -1,0 +1,33 @@
+{
+  "name": "rona",
+  "version": "1.0.0",
+  "description": "Privacy-first ambient-light browser extension for YouTube watch pages",
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build && node scripts/build-post.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "tsc --noEmit",
+    "package": "npm run build && node scripts/package-extension.js"
+  },
+  "keywords": [
+    "chrome-extension",
+    "youtube",
+    "ambient-light",
+    "manifest-v3",
+    "privacy-first"
+  ],
+  "author": "Armand Habib Bachtiar",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chrome": "^0.0.280",
+    "@types/node": "^22.10.1",
+    "@vitest/coverage-v8": "^3.0.5",
+    "jsdom": "^26.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.1.0",
+    "vitest": "^3.0.5"
+  }
+}

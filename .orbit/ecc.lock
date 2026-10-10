@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "repository": "https://github.com/affaan-m/ecc.git",
+  "commit": "d8409a4b0813771235555e32e3d8046a73988bfa",
+  "pinnedAt": "2026-10-10T02:56:12.501Z",
+  "provisionedSkills": [
+    {
+      "id": "architecture-decision-records",
+      "name": "architecture-decision-records",
+      "description": "Capture architectural decisions as numbered ADR markdown files in docs/adr/ with context, alternatives considered, consequences, and an index README. Use when the user says 'record this decision' or 'ADR this', chooses between frameworks or databases, discusses trade-offs, or asks why the codebase is shaped this way.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "autonomous-loops",
+      "name": "autonomous-loops",
+      "description": "Patterns and architectures for autonomous Claude Code loops — from simple sequential pipelines to RFC-driven multi-agent DAG systems. Retained for compatibility only: when new autonomous loop guidance is needed, use continuous-agent-loop instead.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "backend-patterns",
+      "name": "backend-patterns",
+      "description": "Backend architecture patterns, API design, database optimization, and server-side best practices for Node.js, Express, and Next.js API routes. Use when building or reviewing Node.js, Express, or Next.js API routes and their data access.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "benchmark",
+      "name": "benchmark",
+      "description": "Measure performance baselines and detect regressions across browser Core Web Vitals (LCP, INP, CLS, page weight), API endpoint latency percentiles, and build/test feedback times, with before/after comparison stored in git-tracked .ecc/benchmarks JSON. Use when checking page speed, responding to 'it feels slow' reports, verifying launch performance targets, or comparing stack alternatives.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "ck",
+      "name": "ck",
+      "description": "Persistent per-project memory for Claude Code (Context Keeper) driven by deterministic Node.js /ck commands: init, save, resume, info, list, forget, and v1-to-v2 migrate, plus a SessionStart hook that injects a compact project brief. Use when context must survive across sessions, saving session state with next steps and decisions, resuming where a previous session left off, or picking up a project without re-explaining it.",
+      "origin": "community",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "error-handling",
+      "name": "error-handling",
+      "description": "Patterns for robust error handling across TypeScript, Python, and Go. Covers typed errors, error boundaries, retries, circuit breakers, and user-facing error messages. Use when designing error types, retries, circuit breakers, or user-facing failure messages in TypeScript, Python, or Go.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "git-workflow",
+      "name": "git-workflow",
+      "description": "Git workflow patterns including branching strategies, commit conventions, keeping history clean and readable, tidying local commits before merging, merge vs rebase, conflict resolution, and collaborative development best practices for teams of all sizes. Use when choosing a branching strategy, writing commit conventions, cleaning up history before a pull request, deciding merge versus rebase, or resolving conflicts.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "github-ops",
+      "name": "github-ops",
+      "description": "GitHub repository operations, automation, and management. Issue triage, PR management, CI/CD operations, release management, and security monitoring using the gh CLI. Use when the user wants to manage GitHub issues, PRs, CI status, releases, contributors, stale items, or any GitHub operational task beyond simple git commands.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "hexagonal-architecture",
+      "name": "hexagonal-architecture",
+      "description": "Design, implement, and refactor Ports & Adapters systems with clear domain boundaries, dependency inversion, and testable use-case orchestration across TypeScript, Java, Kotlin, and Go services. Use when introducing or refactoring toward Ports and Adapters, or when domain logic has become entangled with I/O.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "mcp-server-patterns",
+      "name": "mcp-server-patterns",
+      "description": "Build MCP servers with Node/TypeScript SDK — tools, resources, prompts, Zod validation, stdio vs Streamable HTTP. Use Context7 or official MCP docs for latest API. Use when building or debugging an MCP server — tools, resources, prompts, validation, or transport choice.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "nestjs-patterns",
+      "name": "nestjs-patterns",
+      "description": "NestJS architecture patterns for modules, controllers, providers, DTO validation, guards, interceptors, config, and production-grade TypeScript backends. Use when building or reviewing a NestJS backend — modules, providers, DTO validation, guards, or interceptors.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "nodejs-keccak256",
+      "name": "nodejs-keccak256",
+      "description": "Prevent Ethereum hashing bugs in JavaScript and TypeScript. Node's sha3-256 is NIST SHA3, not Ethereum Keccak-256, and silently breaks selectors, signatures, storage slots, and address derivation. Use when hashing for Ethereum in JavaScript or TypeScript, or when a selector, signature, storage slot, or derived address is wrong.",
+      "origin": "ECC direct-port adaptation",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "prisma-patterns",
+      "name": "prisma-patterns",
+      "description": "Prisma ORM patterns for TypeScript backends — schema design, query optimization, transactions, pagination, and critical traps like updateMany returning count not records, $transaction timeouts, migrate dev resetting the DB, @updatedAt skipped on bulk writes, and serverless connection exhaustion. Use when writing a Prisma schema or query, or debugging transactions, migrations, or serverless connection limits.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "react-testing",
+      "name": "react-testing",
+      "description": "React component testing with React Testing Library, Vitest/Jest, MSW for network mocking, accessibility assertions with axe, and the decision boundary between component tests and Playwright/Cypress end-to-end runs. Use when writing or fixing tests for React components, hooks, or pages.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "repo-scan",
+      "name": "repo-scan",
+      "description": "Bootstrap pointer that installs the external repo-scan skill from a pinned, reviewable commit. Use when repo-scan must be installed before running its cross-stack source-code asset audit; this ECC pointer does not perform the audit itself.",
+      "origin": "community",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "security-review",
+      "name": "security-review",
+      "description": "Use this skill when adding authentication, handling user input, working with secrets, creating API endpoints, or implementing payment/sensitive features. Provides comprehensive security checklist and patterns.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "tdd-workflow",
+      "name": "tdd-workflow",
+      "description": "Test-driven development workflow: write a failing test first, watch it fail, implement the smallest change to green, then refactor with 80%+ coverage across unit, integration, and E2E tests. Use when writing a new feature, fixing a bug, refactoring, or when told to write failing tests first.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    },
+    {
+      "id": "verification-loop",
+      "name": "verification-loop",
+      "description": "Run a six-phase verification of a Claude Code session's work — build, type check, lint, tests with coverage, security grep, and diff review — then produce a PASS/FAIL verification report. Use when verifying work after completing a feature or refactor, before creating a PR, or when quality gates must pass.",
+      "origin": "ECC",
+      "installedAt": "2026-10-10T02:56:12.501Z"
+    }
+  ]
+}

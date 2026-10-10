@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+package-lock.json.bak
+
+# Build outputs
+dist/
+release/
+*.zip
+
+# Cache and temporary
+.orbit_ecc_cache/
+*.log
+.DS_Store
+Thumbs.db
+coverage/
+
+# Subproject ignore
+/orbit/node_modules/
+/orbit/dist/
