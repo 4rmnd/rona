@@ -4,8 +4,8 @@
   "description": "Privacy-first ambient-light browser extension for YouTube watch pages",
   "type": "module",
   "scripts": {
-    "dev": "vite build --watch",
-    "build": "vite build && node scripts/build-post.js",
+    "dev": "node scripts/build.js --watch",
+    "build": "node scripts/build.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rona</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header with Rona Wordmark and Master Toggle -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon"></div>
+        <div>
+          <h1 class="brand-title">Rona</h1>
+        </div>
+      </div>
+      <label class="switch" title="Toggle ambient effect">
+        <input type="checkbox" id="master-toggle">
+        <span class="slider"></span>
+      </label>
+    </header>
+
+    <!-- Real-time Status Card -->
+    <div class="status-card" id="status-card">
+      <div class="status-left">
+        <div class="status-pulse" id="status-pulse"></div>
+        <span class="status-label" id="status-label">State</span>
+      </div>
+      <span class="status-tier" id="status-tier">Adaptive · Balanced</span>
+    </div>
+
+    <!-- Profile Selector (Eco / Balanced / Cinematic) -->
+    <div class="profile-section">
+      <div class="section-title">Resource Profile</div>
+      <div class="profile-group" role="radiogroup" aria-label="Resource Profile">
+        <button class="profile-btn" id="btn-profile-eco" data-profile="eco" type="button">
+          <span class="p-name">Eco</span>
+          <span class="p-sub">15 FPS</span>
+        </button>
+        <button class="profile-btn active" id="btn-profile-balanced" data-profile="balanced" type="button">
+          <span class="p-name">Balanced</span>
+          <span class="p-sub">24 FPS</span>
+        </button>
+        <button class="profile-btn" id="btn-profile-cinematic" data-profile="cinematic" type="button">
+          <span class="p-name">Cinematic</span>
+          <span class="p-sub">30 FPS</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer with Shortcut Hint & Settings Link -->
+    <footer class="footer">
+      <span class="shortcut-hint">
+        <kbd class="shortcut-kbd">Alt+Shift+R</kbd>
+      </span>
+      <button class="settings-btn" id="open-settings-btn" type="button">
+        <span>Settings</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </footer>
+  </div>
+
+  <script type="module" src="popup.ts"></script>
+</body>
+</html>

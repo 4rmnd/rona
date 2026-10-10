@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rona Settings & Diagnostics</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon"></div>
+        <div>
+          <h1>Rona Settings</h1>
+          <p>Privacy-first ambient lighting for YouTube watch pages</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Visual Adjustments -->
+    <section class="card">
+      <h2 class="card-title">Visual Customization</h2>
+      <div class="slider-group">
+        <div class="slider-item">
+          <div class="slider-header">
+            <span class="slider-label">Intensity</span>
+            <span class="slider-val" id="val-intensity">100%</span>
+          </div>
+          <input type="range" id="input-intensity" min="0" max="100" value="100">
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-header">
+            <span class="slider-label">Blur Radius</span>
+            <span class="slider-val" id="val-blur">40%</span>
+          </div>
+          <input type="range" id="input-blur" min="0" max="100" value="40">
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-header">
+            <span class="slider-label">Spread</span>
+            <span class="slider-val" id="val-spread">30%</span>
+          </div>
+          <input type="range" id="input-spread" min="0" max="100" value="30">
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-header">
+            <span class="slider-label">Edge Fade</span>
+            <span class="slider-val" id="val-fade">20%</span>
+          </div>
+          <input type="range" id="input-fade" min="0" max="100" value="20">
+        </div>
+
+        <div class="select-row">
+          <span class="slider-label">Glow Direction</span>
+          <select id="select-direction">
+            <option value="all">All Sides (Default)</option>
+            <option value="top">Top Only</option>
+            <option value="sides">Left & Right Sides</option>
+            <option value="bottom">Bottom Only</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Performance & Profiles -->
+    <section class="card">
+      <h2 class="card-title">Performance & Resource Profile</h2>
+
+      <div class="select-row">
+        <div>
+          <div style="font-weight: 500;">Default Profile</div>
+          <div style="font-size: 11px; color: var(--text-muted);">Max resolution and FPS targets</div>
+        </div>
+        <select id="select-profile">
+          <option value="eco">Eco (320×180 · 15 FPS)</option>
+          <option value="balanced" selected>Balanced (480×270 · 24 FPS)</option>
+          <option value="cinematic">Cinematic (640×360 · 30 FPS)</option>
+        </select>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div style="font-weight: 500;">Adaptive Resource Mode</div>
+          <p class="toggle-desc">Automatically adjusts quality tier to protect smooth playback when dropped frames or render overhead increase.</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-adaptive" checked>
+          <span class="slider-switch"></span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Advanced Diagnostics Panel -->
+    <section class="card">
+      <h2 class="card-title">Advanced Diagnostics</h2>
+      <div class="diag-grid">
+        <div class="diag-item">
+          <div class="diag-label">Selected Profile</div>
+          <div class="diag-value" id="diag-profile">Balanced</div>
+        </div>
+        <div class="diag-item">
+          <div class="diag-label">Active Adaptive Tier</div>
+          <div class="diag-value" id="diag-tier">Adaptive · Balanced</div>
+        </div>
+        <div class="diag-item">
+          <div class="diag-label">Render FPS Cap</div>
+          <div class="diag-value" id="diag-fps">24 FPS</div>
+        </div>
+        <div class="diag-item">
+          <div class="diag-label">Internal Render Size</div>
+          <div class="diag-value" id="diag-resolution">480 × 270</div>
+        </div>
+      </div>
+      <p class="notice">
+        Honest runtime metrics only. Rona never guesses or reports system RAM, ensuring transparent and accurate performance indicators.
+      </p>
+    </section>
+
+    <!-- Shortcuts & Privacy Statement -->
+    <section class="card">
+      <h2 class="card-title">Keyboard Shortcuts & Privacy</h2>
+      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--text-muted);">
+        <p>Press <kbd>Alt+Shift+R</kbd> anywhere on a YouTube watch page to toggle the ambient effect on or off instantly.</p>
+        <p>You can customize browser shortcut keys via <code>chrome://extensions/shortcuts</code>.</p>
+        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-subtle);">
+          <strong style="color: var(--text-primary);">Privacy Promise:</strong> Rona runs 100% locally on your machine. No user telemetry, no analytics, no external servers, and no data tracking.
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="options.ts"></script>
+</body>
+</html>
