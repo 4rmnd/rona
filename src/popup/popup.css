@@ -163,6 +163,22 @@ input:checked + .slider:before {
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
 }
 
+.status-pulse.standby {
+  background-color: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+}
+
+.status-pulse.paused {
+  background-color: #fbbf24;
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+}
+
+.status-pulse.disabled {
+  background-color: #6b7280;
+  box-shadow: none;
+}
+
+
 .status-label {
   font-size: 12px;
   font-weight: 500;

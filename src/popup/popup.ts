@@ -22,7 +22,7 @@ async function initPopup(): Promise<void> {
   // Initialize controls
   masterToggle.checked = settings.enabled;
   updateProfileButtons(settings.profile);
-  updateStatusDisplay(settings.enabled, settings.profile, settings.adaptiveMode, false);
+  updateStatusDisplay(settings.enabled, settings.profile, settings.adaptiveMode, false, false, false);
 
   // Poll active tab for real-time adaptive status
   try {
@@ -30,6 +30,8 @@ async function initPopup(): Promise<void> {
     if (tab?.id) {
       chrome.tabs.sendMessage(tab.id, { type: 'RONA_GET_STATUS' }, (response) => {
         if (chrome.runtime.lastError || !response?.status) {
+          // Tab is not a YouTube page or content script is standby
+          updateStatusDisplay(settings.enabled, settings.profile, settings.adaptiveMode, false, false, false);
           return;
         }
         const st = response.status;
@@ -37,7 +39,9 @@ async function initPopup(): Promise<void> {
           settings.enabled,
           st.activeTier,
           st.adaptiveEnabled,
-          st.isRenderingActive
+          st.isWatchPage ?? false,
+          st.isRenderingActive ?? false,
+          st.isPaused ?? false
         );
       });
     }
@@ -51,16 +55,15 @@ async function initPopup(): Promise<void> {
       const updated = changes.rona_settings_v1.newValue;
       masterToggle.checked = updated.enabled;
       updateProfileButtons(updated.profile);
-      updateStatusDisplay(updated.enabled, updated.profile, updated.adaptiveMode, updated.enabled);
+      updateStatusDisplay(updated.enabled, updated.profile, updated.adaptiveMode, true, updated.enabled, false);
     }
   });
-
 
   // Master toggle handler
   masterToggle.addEventListener('change', async () => {
     const isEnabled = masterToggle.checked;
     await saveStoredSettings({ enabled: isEnabled });
-    updateStatusDisplay(isEnabled, settings.profile, settings.adaptiveMode, isEnabled);
+    updateStatusDisplay(isEnabled, settings.profile, settings.adaptiveMode, true, isEnabled, false);
   });
 
   // Profile buttons handler
@@ -70,7 +73,7 @@ async function initPopup(): Promise<void> {
       btn.addEventListener('click', async () => {
         updateProfileButtons(prof);
         await saveStoredSettings({ profile: prof });
-        updateStatusDisplay(masterToggle.checked, prof, settings.adaptiveMode, masterToggle.checked);
+        updateStatusDisplay(masterToggle.checked, prof, settings.adaptiveMode, true, masterToggle.checked, false);
       });
     }
   });
@@ -98,20 +101,48 @@ function updateStatusDisplay(
   enabled: boolean,
   tier: RonaProfile,
   adaptive: boolean,
-  isRendering: boolean
+  isWatchPage: boolean,
+  isRendering: boolean,
+  isPaused: boolean
 ): void {
+  statusPulse.className = 'status-pulse';
+
   if (!enabled) {
-    statusPulse.classList.remove('active');
+    statusPulse.classList.add('disabled');
     statusTier.textContent = 'Disabled';
     statusTier.style.color = '#9ca3af';
     return;
   }
 
-  statusPulse.classList.toggle('active', isRendering);
-  const capitalizedTier = tier.charAt(0).toUpperCase() + tier.slice(1);
-  const prefix = adaptive ? 'Adaptive' : 'Fixed';
-  statusTier.textContent = `${prefix} · ${capitalizedTier}`;
-  statusTier.style.color = '#f3f4f6';
+  // When user is browsing Home / Search / Feeds (not currently watching a video)
+  if (!isWatchPage) {
+    statusPulse.classList.add('standby');
+    statusTier.textContent = 'Standby · Ready on Watch';
+    statusTier.style.color = '#38bdf8';
+    return;
+  }
+
+  // Active rendering during playback
+  if (isRendering) {
+    statusPulse.classList.add('active');
+    const capitalizedTier = tier.charAt(0).toUpperCase() + tier.slice(1);
+    const prefix = adaptive ? 'Adaptive' : 'Fixed';
+    statusTier.textContent = `${prefix} · ${capitalizedTier}`;
+    statusTier.style.color = '#10b981';
+    return;
+  }
+
+  // Video paused on watch page
+  if (isPaused) {
+    statusPulse.classList.add('paused');
+    statusTier.textContent = 'Paused · Ready';
+    statusTier.style.color = '#fbbf24';
+    return;
+  }
+
+  statusPulse.classList.add('standby');
+  statusTier.textContent = 'Standby · Ready';
+  statusTier.style.color = '#38bdf8';
 }
 
 document.addEventListener('DOMContentLoaded', initPopup);

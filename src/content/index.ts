@@ -37,6 +37,7 @@ class RonaContentEngine {
   private mutationObserver: MutationObserver | null = null;
   private attachRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private attachAttempts: number = 0;
+  private watchdogInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.init();
@@ -62,6 +63,7 @@ class RonaContentEngine {
     this.setupKeyboardShortcutListener();
     this.setupSpaListeners();
     this.setupMutationObserver();
+    this.setupWatchdog();
 
     // Evaluate initial page state
     this.evaluateRouteAndAttach();
@@ -159,33 +161,46 @@ class RonaContentEngine {
   }
 
   /**
-   * In-page keyboard shortcut handler (Alt+Shift+R / Shift+Alt+R).
-   * Catches the event directly in the capture phase so YouTube does not swallow it.
+   * Resilient in-page keyboard shortcut handler.
+   * Supports Alt+Shift+R, Alt+R (Windows IME collision-free), and Alt+A / Alt+Shift+A.
+   * Catches events in the capture phase on both window and document.
    */
   private setupKeyboardShortcutListener(): void {
-    window.addEventListener(
-      'keydown',
-      (e: KeyboardEvent) => {
-        const isR = e.key === 'r' || e.key === 'R' || e.code === 'KeyR';
-        if (e.altKey && e.shiftKey && isR && !e.ctrlKey && !e.metaKey) {
-          // Avoid triggering when user is typing inside an input/textarea/comment box
-          const target = e.target as HTMLElement | null;
-          if (
-            target &&
-            (target.tagName === 'INPUT' ||
-              target.tagName === 'TEXTAREA' ||
-              target.isContentEditable)
-          ) {
-            return;
-          }
+    const handleKey = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in search, comments, or inputs
+      const target = (e.composedPath ? e.composedPath()[0] : e.target) as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable ||
+          (typeof target.closest === 'function' && target.closest('input, textarea, [contenteditable="true"]')))
+      ) {
+        return;
+      }
 
-          e.preventDefault();
-          e.stopPropagation();
-          this.toggleEnabled();
+      // Modifier validation: Alt must be pressed; Ctrl and Meta must NOT be pressed
+      if (e.ctrlKey || e.metaKey || !e.altKey) {
+        return;
+      }
+
+      const keyLower = e.key ? e.key.toLowerCase() : '';
+      const code = e.code;
+      const isR = keyLower === 'r' || code === 'KeyR';
+      const isA = keyLower === 'a' || code === 'KeyA';
+
+      if (isR || isA) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === 'function') {
+          e.stopImmediatePropagation();
         }
-      },
-      { capture: true }
-    );
+        this.toggleEnabled();
+      }
+    };
+
+    window.addEventListener('keydown', handleKey, { capture: true });
+    document.addEventListener('keydown', handleKey, { capture: true });
   }
 
   /**
@@ -210,6 +225,8 @@ class RonaContentEngine {
     };
 
     window.addEventListener('yt-navigate-finish', handleNavigation);
+    window.addEventListener('yt-page-data-updated', handleNavigation);
+    window.addEventListener('yt-player-updated', handleNavigation);
     window.addEventListener('popstate', handleNavigation);
 
     // Watch for URL changes on SPA pushState / replaceState
@@ -219,7 +236,7 @@ class RonaContentEngine {
         prevUrl = window.location.href;
         handleNavigation();
       }
-    }, 500);
+    }, 400);
 
     // Tab visibility handling (FR-08)
     document.addEventListener('visibilitychange', () => {
@@ -227,6 +244,35 @@ class RonaContentEngine {
         this.lifecycleManager.setVisibilityState(document.visibilityState);
       }
     });
+  }
+
+  /**
+   * Self-healing watchdog: checks every 1000ms if on a watch page to ensure
+   * the ambient container and video bindings stay alive after video transitions.
+   */
+  private setupWatchdog(): void {
+    if (this.watchdogInterval) clearInterval(this.watchdogInterval);
+
+    this.watchdogInterval = setInterval(() => {
+      if (!isSupportedYouTubeWatchUrl(window.location.href) || !this.settings?.enabled) {
+        return;
+      }
+
+      const watchFlexy = document.querySelector('ytd-watch-flexy');
+      const video = (watchFlexy?.querySelector('video.html5-main-video') as HTMLVideoElement | null) ||
+                    (document.querySelector('video.html5-main-video') as HTMLVideoElement | null);
+
+      if (video) {
+        const isContainerDisconnected = !this.containerEl || !this.containerEl.isConnected;
+        const isVideoChanged = this.currentVideoEl !== video || !this.currentVideoEl.isConnected;
+
+        if (isContainerDisconnected || isVideoChanged) {
+          this.attachToVideoPlayer();
+        } else if (!video.paused && !video.ended && !this.lifecycleManager?.isRenderingActive()) {
+          this.lifecycleManager?.setPlaybackState('playing');
+        }
+      }
+    }, 1000);
   }
 
   /**
@@ -242,7 +288,7 @@ class RonaContentEngine {
       debounceTimer = setTimeout(() => {
         debounceTimer = null;
 
-        const currentVideo = document.querySelector('video.html5-main-video') as HTMLVideoElement | null;
+        const currentVideo = document.querySelector('ytd-watch-flexy video.html5-main-video') as HTMLVideoElement | null;
         const isVideoMissingOrChanged = !this.currentVideoEl || !this.currentVideoEl.isConnected || (currentVideo && currentVideo !== this.currentVideoEl);
         const isContainerDisconnected = !this.containerEl || !this.containerEl.isConnected;
 
@@ -284,21 +330,27 @@ class RonaContentEngine {
     const findVideoAndPlayer = () => {
       if (this.isDestroyed || !isSupportedYouTubeWatchUrl(window.location.href)) return;
 
-      const video = (document.querySelector('video.html5-main-video') as HTMLVideoElement | null) ||
+      const watchFlexy = document.querySelector('ytd-watch-flexy');
+
+      // Specifically prioritize the main video inside ytd-watch-flexy to avoid preview players on home
+      const video = (watchFlexy?.querySelector('video.html5-main-video') as HTMLVideoElement | null) ||
+                    (document.querySelector('ytd-watch-flexy video') as HTMLVideoElement | null) ||
+                    (document.querySelector('video.html5-main-video') as HTMLVideoElement | null) ||
                     (document.querySelector('video') as HTMLVideoElement | null);
 
       // Identify active player container (handles both Default and Theater modes)
       const playerContainer =
+        (watchFlexy?.querySelector('ytd-player#ytd-player') as HTMLElement) ||
         (video?.closest('ytd-player') as HTMLElement) ||
-        (document.querySelector('ytd-watch-flexy[theater] #full-bleed-container') as HTMLElement) ||
-        (document.querySelector('#player') as HTMLElement) ||
+        (watchFlexy?.querySelector('#full-bleed-container') as HTMLElement) ||
+        (watchFlexy?.querySelector('#player') as HTMLElement) ||
         (document.querySelector('#player-container') as HTMLElement) ||
         (video?.closest('#movie_player') as HTMLElement) ||
         (video?.parentElement as HTMLElement);
 
       if (video && playerContainer) {
         this.bindVideo(video, playerContainer);
-      } else if (this.attachAttempts < 30) {
+      } else if (this.attachAttempts < 40) {
         this.attachAttempts++;
         this.attachRetryTimer = setTimeout(findVideoAndPlayer, 300);
       }
@@ -358,7 +410,12 @@ class RonaContentEngine {
     const onEnded = () => this.lifecycleManager?.setPlaybackState('ended');
     const onPlayingOrActive = () => {
       if (!video.paused && !video.ended) {
-        this.lifecycleManager?.setPlaybackState('playing');
+        // Self-heal check: if container was removed during play, re-mount
+        if (!this.containerEl || !this.containerEl.isConnected) {
+          this.attachToVideoPlayer();
+        } else {
+          this.lifecycleManager?.setPlaybackState('playing');
+        }
       }
     };
 
@@ -532,6 +589,12 @@ class RonaContentEngine {
       return;
     }
 
+    // Self-healing check: if DOM element detached during video playback, re-attach immediately
+    if (!this.containerEl || !this.containerEl.isConnected) {
+      this.attachToVideoPlayer();
+      return;
+    }
+
     const state = this.adaptiveController.getState();
     const minFrameIntervalMs = 1000 / state.effectiveFps;
     const now = fallbackNow || performance.now();
@@ -622,7 +685,11 @@ class RonaContentEngine {
   }
 
   public getStatus() {
+    const isWatch = isSupportedYouTubeWatchUrl(window.location.href);
     const adaptiveState = this.adaptiveController?.getState();
+    const isRendering = this.lifecycleManager?.isRenderingActive() ?? false;
+    const isPaused = this.currentVideoEl ? this.currentVideoEl.paused : true;
+
     return {
       selectedProfile: this.settings?.profile ?? 'balanced',
       activeTier: adaptiveState?.activeTier ?? 'balanced',
@@ -630,7 +697,9 @@ class RonaContentEngine {
       fpsCap: adaptiveState?.effectiveFps ?? 24,
       internalWidth: adaptiveState?.effectiveResolution.width ?? 480,
       internalHeight: adaptiveState?.effectiveResolution.height ?? 270,
-      isRenderingActive: this.lifecycleManager?.isRenderingActive() ?? false
+      isRenderingActive: isRendering,
+      isWatchPage: isWatch,
+      isPaused: isPaused
     };
   }
 
