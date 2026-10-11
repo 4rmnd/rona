@@ -1,12 +1,13 @@
 /**
  * Content Script for Rona (MV3)
- * Operates exclusively on YouTube watch pages.
- * Delivers dynamic ambient lighting around the player while protecting playback performance.
+ * Operates on YouTube pages, activating ambient lighting strictly on valid watch pages.
+ * Resilient against SPA navigation, player re-mounts, and theater mode toggles.
+ * Delivers dynamic ambient lighting while protecting playback performance.
  * Fully compliant with PRD v1.0 specifications and operating rules.
  */
 
 import { isSupportedYouTubeWatchUrl } from '../core/url-matcher';
-import { loadStoredSettings, type RonaSettings } from '../core/settings';
+import { loadStoredSettings, saveStoredSettings, type RonaSettings } from '../core/settings';
 import { AdaptiveController } from '../core/adaptive-controller';
 import { LifecycleManager } from '../core/lifecycle-manager';
 import { checkRenderingCapability, handleCapabilityFailure } from '../core/capability';
@@ -24,6 +25,9 @@ class RonaContentEngine {
   private sampleCtx: CanvasRenderingContext2D | null = null;
 
   private currentVideoEl: HTMLVideoElement | null = null;
+  private currentBoundContainer: HTMLElement | null = null;
+  private videoCleanupFn: (() => void) | null = null;
+
   private rvfcHandle: number | null = null;
   private rafHandle: number | null = null;
 
@@ -31,16 +35,15 @@ class RonaContentEngine {
   private lastSampleDroppedTotal: number = 0;
   private isDestroyed: boolean = false;
   private resizeObserver: ResizeObserver | null = null;
+  private mutationObserver: MutationObserver | null = null;
+  private attachRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private attachAttempts: number = 0;
 
   constructor() {
     this.init();
   }
 
   private async init(): Promise<void> {
-    if (!isSupportedYouTubeWatchUrl(window.location.href)) {
-      return;
-    }
-
     this.settings = await loadStoredSettings();
 
     this.adaptiveController = new AdaptiveController({
@@ -53,16 +56,30 @@ class RonaContentEngine {
       onResume: () => this.startRenderLoop()
     });
 
+    // Always attach global communication & navigation listeners
     this.setupMessageListener();
+    this.setupStorageListener();
+    this.setupKeyboardShortcutListener();
     this.setupSpaListeners();
-    this.attachToVideoPlayer();
+    this.setupMutationObserver();
+
+    // Evaluate initial page state
+    this.evaluateRouteAndAttach();
   }
 
+  /**
+   * Listen to messages from popup or background worker.
+   */
   private setupMessageListener(): void {
+    if (typeof chrome === 'undefined' || !chrome.runtime?.onMessage) return;
+
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       if (message.type === 'RONA_SETTINGS_CHANGED' && message.settings) {
         this.updateSettings(message.settings);
         sendResponse({ success: true });
+      } else if (message.type === 'RONA_TOGGLE') {
+        this.toggleEnabled().then(() => sendResponse({ success: true }));
+        return true;
       } else if (message.type === 'RONA_GET_STATUS') {
         sendResponse({
           success: true,
@@ -73,30 +90,80 @@ class RonaContentEngine {
     });
   }
 
+  /**
+   * Directly listen to chrome.storage.onChanged for real-time reactivity
+   * whenever popup or options page updates settings.
+   */
+  private setupStorageListener(): void {
+    if (typeof chrome === 'undefined' || !chrome.storage?.onChanged) return;
+
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local' && changes.rona_settings_v1?.newValue) {
+        this.updateSettings(changes.rona_settings_v1.newValue);
+      }
+    });
+  }
+
+  /**
+   * In-page keyboard shortcut handler (Alt+Shift+R / Shift+Alt+R).
+   * Catches the event directly in the capture phase so YouTube does not swallow it.
+   */
+  private setupKeyboardShortcutListener(): void {
+    window.addEventListener(
+      'keydown',
+      (e: KeyboardEvent) => {
+        const isR = e.key === 'r' || e.key === 'R' || e.code === 'KeyR';
+        if (e.altKey && e.shiftKey && isR && !e.ctrlKey && !e.metaKey) {
+          // Avoid triggering when user is typing inside an input/textarea/comment box
+          const target = e.target as HTMLElement | null;
+          if (
+            target &&
+            (target.tagName === 'INPUT' ||
+              target.tagName === 'TEXTAREA' ||
+              target.isContentEditable)
+          ) {
+            return;
+          }
+
+          e.preventDefault();
+          e.stopPropagation();
+          this.toggleEnabled();
+        }
+      },
+      { capture: true }
+    );
+  }
+
+  /**
+   * Toggle extension enabled status and persist to storage.
+   */
+  private async toggleEnabled(): Promise<void> {
+    const currentEnabled = this.settings?.enabled ?? true;
+    const newEnabled = !currentEnabled;
+    await saveStoredSettings({ enabled: newEnabled });
+  }
+
+  /**
+   * Setup listeners for YouTube's client-side SPA navigation and visibility changes.
+   */
   private setupSpaListeners(): void {
     const handleNavigation = () => {
-      if (isSupportedYouTubeWatchUrl(window.location.href)) {
-        if (this.isDestroyed || !this.currentVideoEl) {
-          this.attachToVideoPlayer();
-        }
-      } else {
-        this.teardown();
-      }
+      this.evaluateRouteAndAttach();
     };
 
     window.addEventListener('yt-navigate-finish', handleNavigation);
     window.addEventListener('popstate', handleNavigation);
 
-    // Watch for URL changes on SPA pushState
+    // Watch for URL changes on SPA pushState / replaceState
     let prevUrl = window.location.href;
     setInterval(() => {
       if (window.location.href !== prevUrl) {
         prevUrl = window.location.href;
         handleNavigation();
       }
-    }, 1000);
+    }, 500);
 
-    // Tab visibility handling
+    // Tab visibility handling (FR-08)
     document.addEventListener('visibilitychange', () => {
       if (this.lifecycleManager) {
         this.lifecycleManager.setVisibilityState(document.visibilityState);
@@ -104,38 +171,112 @@ class RonaContentEngine {
     });
   }
 
+  /**
+   * Observe DOM mutations to detect when YouTube mounts player or replaces video element.
+   */
+  private setupMutationObserver(): void {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    this.mutationObserver = new MutationObserver(() => {
+      if (!isSupportedYouTubeWatchUrl(window.location.href)) return;
+
+      if (debounceTimer) return;
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+
+        const currentVideo = document.querySelector('video.html5-main-video') as HTMLVideoElement | null;
+        const isVideoMissingOrChanged = !this.currentVideoEl || !this.currentVideoEl.isConnected || (currentVideo && currentVideo !== this.currentVideoEl);
+        const isContainerDisconnected = !this.containerEl || !this.containerEl.isConnected;
+
+        if (isVideoMissingOrChanged || isContainerDisconnected) {
+          this.attachToVideoPlayer();
+        }
+      }, 300);
+    });
+
+    this.mutationObserver.observe(document.body || document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  /**
+   * Gating check: activate engine on watch pages, teardown on non-watch pages (FR-01).
+   */
+  private evaluateRouteAndAttach(): void {
+    if (isSupportedYouTubeWatchUrl(window.location.href)) {
+      this.attachToVideoPlayer();
+    } else {
+      this.teardown();
+    }
+  }
+
+  /**
+   * Robustly attach to YouTube's player container and video element.
+   */
   private attachToVideoPlayer(): void {
     this.isDestroyed = false;
+    this.attachAttempts = 0;
 
-    // Retry finding the video element if player is still mounting
-    let attempts = 0;
-    const findVideo = () => {
+    if (this.attachRetryTimer) {
+      clearTimeout(this.attachRetryTimer);
+      this.attachRetryTimer = null;
+    }
+
+    const findVideoAndPlayer = () => {
       if (this.isDestroyed || !isSupportedYouTubeWatchUrl(window.location.href)) return;
 
-      const video = document.querySelector('video.html5-main-video') as HTMLVideoElement | null;
+      const video = (document.querySelector('video.html5-main-video') as HTMLVideoElement | null) ||
+                    (document.querySelector('video') as HTMLVideoElement | null);
+
+      // Identify active player container (handles both Default and Theater modes)
       const playerContainer =
+        (video?.closest('#ytd-player') as HTMLElement) ||
+        (document.querySelector('ytd-watch-flexy #ytd-player') as HTMLElement) ||
+        (video?.closest('#movie_player') as HTMLElement) ||
         (document.querySelector('#player-container') as HTMLElement) ||
-        (document.querySelector('#movie_player') as HTMLElement) ||
         (video?.parentElement as HTMLElement);
 
       if (video && playerContainer) {
         this.bindVideo(video, playerContainer);
-      } else if (attempts < 20) {
-        attempts++;
-        setTimeout(findVideo, 250);
+      } else if (this.attachAttempts < 30) {
+        this.attachAttempts++;
+        this.attachRetryTimer = setTimeout(findVideoAndPlayer, 300);
       }
     };
 
-    findVideo();
+    findVideoAndPlayer();
   }
 
+  /**
+   * Bind video events and mount canvas elements.
+   */
   private bindVideo(video: HTMLVideoElement, playerContainer: HTMLElement): void {
-    if (this.currentVideoEl === video && this.containerEl) {
+    // If already cleanly bound to this video and container
+    if (
+      this.currentVideoEl === video &&
+      this.currentBoundContainer === playerContainer &&
+      this.containerEl &&
+      this.containerEl.isConnected &&
+      this.containerEl.parentElement === playerContainer
+    ) {
+      this.updateCanvasBounds();
+      this.applyVisualStyles();
+      if (!video.paused && !video.ended) {
+        this.lifecycleManager?.setPlaybackState('playing');
+      }
       return;
     }
 
     this.cleanupVideoBindings();
     this.currentVideoEl = video;
+    this.currentBoundContainer = playerContainer;
+
+    // Ensure player container has relative positioning so ambient container aligns correctly
+    const containerPos = window.getComputedStyle(playerContainer).position;
+    if (containerPos === 'static') {
+      playerContainer.style.position = 'relative';
+    }
 
     // Create Canvas elements
     this.createDomElements(playerContainer);
@@ -154,13 +295,31 @@ class RonaContentEngine {
     const onPlay = () => this.lifecycleManager?.setPlaybackState('playing');
     const onPause = () => this.lifecycleManager?.setPlaybackState('paused');
     const onEnded = () => this.lifecycleManager?.setPlaybackState('ended');
+    const onPlayingOrActive = () => {
+      if (!video.paused && !video.ended) {
+        this.lifecycleManager?.setPlaybackState('playing');
+      }
+    };
 
     video.addEventListener('play', onPlay);
     video.addEventListener('playing', onPlay);
     video.addEventListener('pause', onPause);
     video.addEventListener('ended', onEnded);
+    video.addEventListener('timeupdate', onPlayingOrActive);
+    video.addEventListener('loadeddata', onPlayingOrActive);
+    video.addEventListener('canplay', onPlayingOrActive);
 
-    // Initial state
+    this.videoCleanupFn = () => {
+      video.removeEventListener('play', onPlay);
+      video.removeEventListener('playing', onPlay);
+      video.removeEventListener('pause', onPause);
+      video.removeEventListener('ended', onEnded);
+      video.removeEventListener('timeupdate', onPlayingOrActive);
+      video.removeEventListener('loadeddata', onPlayingOrActive);
+      video.removeEventListener('canplay', onPlayingOrActive);
+    };
+
+    // Initial state check
     if (!video.paused && !video.ended) {
       this.lifecycleManager?.setPlaybackState('playing');
     }
@@ -219,17 +378,21 @@ class RonaContentEngine {
   }
 
   private updateCanvasBounds(): void {
-    if (!this.containerEl || !this.displayCanvas || !this.currentVideoEl) return;
+    if (!this.containerEl || !this.displayCanvas) return;
 
     const rect = this.containerEl.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
+    const videoRect = this.currentVideoEl ? this.currentVideoEl.getBoundingClientRect() : null;
+    const width = rect.width > 0 ? rect.width : (videoRect?.width ?? 0);
+    const height = rect.height > 0 ? rect.height : (videoRect?.height ?? 0);
+
+    if (width === 0 || height === 0) return;
 
     const spread = (this.settings?.spread ?? 30) / 100;
-    const paddingX = rect.width * (0.15 + spread * 0.25);
-    const paddingY = rect.height * (0.15 + spread * 0.25);
+    const paddingX = width * (0.15 + spread * 0.25);
+    const paddingY = height * (0.15 + spread * 0.25);
 
-    this.displayCanvas.width = Math.round(rect.width + paddingX * 2);
-    this.displayCanvas.height = Math.round(rect.height + paddingY * 2);
+    this.displayCanvas.width = Math.round(width + paddingX * 2);
+    this.displayCanvas.height = Math.round(height + paddingY * 2);
 
     this.displayCanvas.style.width = `${this.displayCanvas.width}px`;
     this.displayCanvas.style.height = `${this.displayCanvas.height}px`;
@@ -365,7 +528,6 @@ class RonaContentEngine {
     // 4. Sample dropped frames and feed AdaptiveController (FR-06)
     let droppedDelta = 0;
     if (metadata && typeof metadata.presentedFrames === 'number') {
-      // Modern rVFC metadata
       const currentDropped = (this.currentVideoEl as any).getVideoPlaybackQuality?.()?.droppedVideoFrames ?? 0;
       droppedDelta = Math.max(0, currentDropped - this.lastSampleDroppedTotal);
       this.lastSampleDroppedTotal = currentDropped;
@@ -414,13 +576,20 @@ class RonaContentEngine {
 
   private cleanupVideoBindings(): void {
     this.stopRenderLoop();
+    this.videoCleanupFn?.();
+    this.videoCleanupFn = null;
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     this.currentVideoEl = null;
+    this.currentBoundContainer = null;
   }
 
   private teardown(): void {
     this.isDestroyed = true;
+    if (this.attachRetryTimer) {
+      clearTimeout(this.attachRetryTimer);
+      this.attachRetryTimer = null;
+    }
     this.lifecycleManager?.handleSpaNavigationStart();
     this.cleanupVideoBindings();
 

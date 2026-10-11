@@ -12,15 +12,15 @@ chrome.commands.onCommand.addListener(async (command) => {
     const settings = await loadStoredSettings();
     const updated = await saveStoredSettings({ enabled: !settings.enabled });
 
-    // Notify active YouTube watch tab
+    // Notify active tab
     try {
       const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (activeTab && activeTab.id && activeTab.url?.includes('youtube.com/watch')) {
+      if (activeTab?.id) {
         chrome.tabs.sendMessage(activeTab.id, {
           type: 'RONA_SETTINGS_CHANGED',
           settings: updated
         }).catch(() => {
-          // Tab might not be ready or injected yet
+          // Not a YouTube tab or content script not ready
         });
       }
     } catch {
@@ -31,9 +31,9 @@ chrome.commands.onCommand.addListener(async (command) => {
 
 // Broadcast settings change when storage updates
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === 'local' && changes.rona_settings_v1) {
+  if (areaName === 'local' && changes.rona_settings_v1?.newValue) {
     const newSettings = changes.rona_settings_v1.newValue;
-    chrome.tabs.query({ url: '*://www.youtube.com/watch*' }, (tabs) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       for (const tab of tabs) {
         if (tab.id) {
           chrome.tabs.sendMessage(tab.id, {
@@ -45,3 +45,4 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     });
   }
 });
+

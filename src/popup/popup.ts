@@ -27,22 +27,34 @@ async function initPopup(): Promise<void> {
   // Poll active tab for real-time adaptive status
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id && tab.url?.includes('youtube.com/watch')) {
+    if (tab?.id) {
       chrome.tabs.sendMessage(tab.id, { type: 'RONA_GET_STATUS' }, (response) => {
-        if (response?.status) {
-          const st = response.status;
-          updateStatusDisplay(
-            settings.enabled,
-            st.activeTier,
-            st.adaptiveEnabled,
-            st.isRenderingActive
-          );
+        if (chrome.runtime.lastError || !response?.status) {
+          return;
         }
+        const st = response.status;
+        updateStatusDisplay(
+          settings.enabled,
+          st.activeTier,
+          st.adaptiveEnabled,
+          st.isRenderingActive
+        );
       });
     }
   } catch {
     // Non-watch tab or not loaded yet
   }
+
+  // Synchronize UI if settings change externally (e.g. keyboard shortcut or options)
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local' && changes.rona_settings_v1?.newValue) {
+      const updated = changes.rona_settings_v1.newValue;
+      masterToggle.checked = updated.enabled;
+      updateProfileButtons(updated.profile);
+      updateStatusDisplay(updated.enabled, updated.profile, updated.adaptiveMode, updated.enabled);
+    }
+  });
+
 
   // Master toggle handler
   masterToggle.addEventListener('change', async () => {
