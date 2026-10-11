@@ -34,7 +34,6 @@ class RonaContentEngine {
   private lastRenderTime: number = 0;
   private lastSampleDroppedTotal: number = 0;
   private isDestroyed: boolean = false;
-  private resizeObserver: ResizeObserver | null = null;
   private mutationObserver: MutationObserver | null = null;
   private attachRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private attachAttempts: number = 0;
@@ -44,6 +43,7 @@ class RonaContentEngine {
   }
 
   private async init(): Promise<void> {
+    this.ensureGlobalStyles();
     this.settings = await loadStoredSettings();
 
     this.adaptiveController = new AdaptiveController({
@@ -65,6 +65,60 @@ class RonaContentEngine {
 
     // Evaluate initial page state
     this.evaluateRouteAndAttach();
+  }
+
+  /**
+   * Injects global stylesheet to ensure YouTube's player wrappers allow ambient overflow
+   * and properly stack the video player in front of the ambient glow.
+   */
+  private ensureGlobalStyles(): void {
+    if (document.getElementById('rona-ambient-styles')) return;
+
+    const style = document.createElement('style');
+    style.id = 'rona-ambient-styles';
+    style.textContent = `
+      #rona-ambient-container {
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        pointer-events: none !important;
+        z-index: 0 !important;
+        overflow: visible !important;
+      }
+      #rona-ambient-canvas {
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        pointer-events: none !important;
+        transform-origin: center center !important;
+        will-change: transform, filter, opacity !important;
+        transition: opacity 0.3s ease, filter 0.2s ease, transform 0.2s ease !important;
+      }
+      #player,
+      #player-container-outer,
+      #player-container-inner,
+      #player-container,
+      #full-bleed-container,
+      ytd-player,
+      #container.ytd-player {
+        overflow: visible !important;
+      }
+      #movie_player {
+        z-index: 1 !important;
+        position: relative !important;
+      }
+      .html5-video-player .ytp-chrome-bottom,
+      .html5-video-player .ytp-chrome-top {
+        z-index: 60 !important;
+      }
+      ytd-watch-flexy[fullscreen] #rona-ambient-container,
+      :fullscreen #rona-ambient-container {
+        display: none !important;
+      }
+    `;
+    (document.head || document.documentElement).appendChild(style);
   }
 
   /**
@@ -135,11 +189,15 @@ class RonaContentEngine {
   }
 
   /**
-   * Toggle extension enabled status and persist to storage.
+   * Toggle extension enabled status with immediate local reactivity and persistence.
    */
   private async toggleEnabled(): Promise<void> {
     const currentEnabled = this.settings?.enabled ?? true;
     const newEnabled = !currentEnabled;
+
+    if (this.settings) {
+      this.updateSettings({ ...this.settings, enabled: newEnabled });
+    }
     await saveStoredSettings({ enabled: newEnabled });
   }
 
@@ -231,10 +289,11 @@ class RonaContentEngine {
 
       // Identify active player container (handles both Default and Theater modes)
       const playerContainer =
-        (video?.closest('#ytd-player') as HTMLElement) ||
-        (document.querySelector('ytd-watch-flexy #ytd-player') as HTMLElement) ||
-        (video?.closest('#movie_player') as HTMLElement) ||
+        (video?.closest('ytd-player') as HTMLElement) ||
+        (document.querySelector('ytd-watch-flexy[theater] #full-bleed-container') as HTMLElement) ||
+        (document.querySelector('#player') as HTMLElement) ||
         (document.querySelector('#player-container') as HTMLElement) ||
+        (video?.closest('#movie_player') as HTMLElement) ||
         (video?.parentElement as HTMLElement);
 
       if (video && playerContainer) {
@@ -260,7 +319,6 @@ class RonaContentEngine {
       this.containerEl.isConnected &&
       this.containerEl.parentElement === playerContainer
     ) {
-      this.updateCanvasBounds();
       this.applyVisualStyles();
       if (!video.paused && !video.ended) {
         this.lifecycleManager?.setPlaybackState('playing');
@@ -292,7 +350,10 @@ class RonaContentEngine {
     }
 
     // Bind video events to LifecycleManager (FR-08)
-    const onPlay = () => this.lifecycleManager?.setPlaybackState('playing');
+    const onPlay = () => {
+      this.lifecycleManager?.setPlaybackState('playing');
+      this.applyVisualStyles();
+    };
     const onPause = () => this.lifecycleManager?.setPlaybackState('paused');
     const onEnded = () => this.lifecycleManager?.setPlaybackState('ended');
     const onPlayingOrActive = () => {
@@ -324,12 +385,7 @@ class RonaContentEngine {
       this.lifecycleManager?.setPlaybackState('playing');
     }
 
-    // Keep display canvas aligned with player size
-    this.resizeObserver = new ResizeObserver(() => {
-      this.updateCanvasBounds();
-    });
-    this.resizeObserver.observe(playerContainer);
-    this.updateCanvasBounds();
+    this.applyVisualStyles();
   }
 
   private createDomElements(playerContainer: HTMLElement): void {
@@ -344,6 +400,8 @@ class RonaContentEngine {
     container.id = 'rona-ambient-container';
     container.style.position = 'absolute';
     container.style.inset = '0';
+    container.style.width = '100%';
+    container.style.height = '100%';
     container.style.pointerEvents = 'none';
     container.style.zIndex = '0';
     container.style.overflow = 'visible';
@@ -353,9 +411,11 @@ class RonaContentEngine {
     const canvas = document.createElement('canvas');
     canvas.id = 'rona-ambient-canvas';
     canvas.style.position = 'absolute';
+    canvas.style.inset = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
     canvas.style.pointerEvents = 'none';
     canvas.style.transformOrigin = 'center center';
-    canvas.style.transition = 'opacity 0.3s ease, filter 0.2s ease';
 
     container.appendChild(canvas);
 
@@ -377,34 +437,21 @@ class RonaContentEngine {
     this.applyVisualStyles();
   }
 
-  private updateCanvasBounds(): void {
-    if (!this.containerEl || !this.displayCanvas) return;
-
-    const rect = this.containerEl.getBoundingClientRect();
-    const videoRect = this.currentVideoEl ? this.currentVideoEl.getBoundingClientRect() : null;
-    const width = rect.width > 0 ? rect.width : (videoRect?.width ?? 0);
-    const height = rect.height > 0 ? rect.height : (videoRect?.height ?? 0);
-
-    if (width === 0 || height === 0) return;
-
-    const spread = (this.settings?.spread ?? 30) / 100;
-    const paddingX = width * (0.15 + spread * 0.25);
-    const paddingY = height * (0.15 + spread * 0.25);
-
-    this.displayCanvas.width = Math.round(width + paddingX * 2);
-    this.displayCanvas.height = Math.round(height + paddingY * 2);
-
-    this.displayCanvas.style.width = `${this.displayCanvas.width}px`;
-    this.displayCanvas.style.height = `${this.displayCanvas.height}px`;
-    this.displayCanvas.style.left = `${-paddingX}px`;
-    this.displayCanvas.style.top = `${-paddingY}px`;
-  }
-
   private applyVisualStyles(): void {
     if (!this.displayCanvas || !this.settings) return;
 
-    const blurPx = Math.round((this.settings.blur / 100) * 80 + 20);
-    const opacity = (this.settings.intensity / 100).toFixed(2);
+    // Scale calculation based on Spread setting (30 default -> 1.25x scale)
+    const spreadFraction = this.settings.spread / 100;
+    const scale = (1.15 + spreadFraction * 0.35).toFixed(3);
+
+    // Blur calculation (40 default -> 44px blur)
+    const blurPx = Math.round((this.settings.blur / 100) * 55 + 22);
+
+    // Opacity, Brightness, and Saturation based on Intensity
+    const intensityFraction = this.settings.intensity / 100;
+    const opacity = intensityFraction.toFixed(2);
+    const brightness = Math.round(100 + intensityFraction * 35);
+    const saturate = Math.round(110 + intensityFraction * 50);
 
     // Directional clip / mask
     let clipPath = 'none';
@@ -416,7 +463,8 @@ class RonaContentEngine {
       clipPath = 'polygon(0% 0%, 25% 0%, 25% 100%, 0% 100%, 75% 100%, 100% 100%, 100% 0%, 75% 0%)';
     }
 
-    this.displayCanvas.style.filter = `blur(${blurPx}px)`;
+    this.displayCanvas.style.transform = `scale(${scale})`;
+    this.displayCanvas.style.filter = `blur(${blurPx}px) brightness(${brightness}%) saturate(${saturate}%)`;
     this.displayCanvas.style.opacity = opacity;
     this.displayCanvas.style.clipPath = clipPath;
 
@@ -477,7 +525,9 @@ class RonaContentEngine {
       !this.sampleCanvas ||
       !this.sampleCtx ||
       !this.adaptiveController ||
-      this.currentVideoEl.readyState < 2
+      this.currentVideoEl.readyState < 2 ||
+      this.currentVideoEl.videoWidth === 0 ||
+      this.currentVideoEl.videoHeight === 0
     ) {
       return;
     }
@@ -501,31 +551,41 @@ class RonaContentEngine {
       this.sampleCanvas.height = targetRes.height;
     }
 
-    // 2. Draw downscaled video frame
-    this.sampleCtx.drawImage(
-      this.currentVideoEl,
-      0,
-      0,
-      this.sampleCanvas.width,
-      this.sampleCanvas.height
-    );
+    // 2. Display canvas resolution matches sample resolution for ultra-fast blitting
+    if (this.displayCanvas.width !== targetRes.width || this.displayCanvas.height !== targetRes.height) {
+      this.displayCanvas.width = targetRes.width;
+      this.displayCanvas.height = targetRes.height;
+    }
 
-    // 3. Render smoothly to display canvas
-    this.displayCtx.clearRect(0, 0, this.displayCanvas.width, this.displayCanvas.height);
-    this.displayCtx.imageSmoothingEnabled = true;
-    this.displayCtx.imageSmoothingQuality = 'medium';
+    try {
+      // 3. Draw downscaled video frame to sample canvas
+      this.sampleCtx.drawImage(
+        this.currentVideoEl,
+        0,
+        0,
+        this.sampleCanvas.width,
+        this.sampleCanvas.height
+      );
 
-    this.displayCtx.drawImage(
-      this.sampleCanvas,
-      0,
-      0,
-      this.displayCanvas.width,
-      this.displayCanvas.height
-    );
+      // 4. Render smoothed frame directly to display canvas
+      this.displayCtx.clearRect(0, 0, this.displayCanvas.width, this.displayCanvas.height);
+      this.displayCtx.imageSmoothingEnabled = true;
+      this.displayCtx.imageSmoothingQuality = 'medium';
+
+      this.displayCtx.drawImage(
+        this.sampleCanvas,
+        0,
+        0,
+        this.displayCanvas.width,
+        this.displayCanvas.height
+      );
+    } catch {
+      // Catch transient media errors (e.g. ad switchover)
+    }
 
     const renderDurationMs = performance.now() - renderStartTime;
 
-    // 4. Sample dropped frames and feed AdaptiveController (FR-06)
+    // 5. Sample dropped frames and feed AdaptiveController (FR-06)
     let droppedDelta = 0;
     if (metadata && typeof metadata.presentedFrames === 'number') {
       const currentDropped = (this.currentVideoEl as any).getVideoPlaybackQuality?.()?.droppedVideoFrames ?? 0;
@@ -578,8 +638,6 @@ class RonaContentEngine {
     this.stopRenderLoop();
     this.videoCleanupFn?.();
     this.videoCleanupFn = null;
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
     this.currentVideoEl = null;
     this.currentBoundContainer = null;
   }
