@@ -1,6 +1,6 @@
 # Rona — Ambient Light for YouTube (v0.1.0)
 
-[![Release: v0.1.0](https://img.shields.io/badge/Release-v0.1.0-amber.svg)](https://github.com/armandhabib/rona/releases)
+[![Release: v0.1.0](https://img.shields.io/badge/Release-v0.1.0-amber.svg)](https://github.com/4rmnd/rona/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-success.svg)](./public/manifest.json)
 [![Tests: 30 passed](https://img.shields.io/badge/Tests-30%20passed-emerald.svg)](./tests/)
@@ -44,7 +44,7 @@ Rona didistribusikan sebagai rilis open-source GitHub yang dapat dipasang langsu
 
 ### Cara 1: Menggunakan Release ZIP (Paling Mudah)
 
-1. Unduh file [**`rona-v0.1.0.zip`**](https://github.com/armandhabib/rona/releases) dari menu [Releases di GitHub](https://github.com/armandhabib/rona/releases) (atau dari folder [`release/`](./release/)).
+1. Unduh file [**`rona-v0.1.0.zip`**](https://github.com/4rmnd/rona/releases) dari menu [Releases di GitHub](https://github.com/4rmnd/rona/releases) (atau dari folder [`release/`](./release/)).
 2. Ekstrak file `rona-v0.1.0.zip` tersebut ke folder di komputer Anda (misalnya di `Downloads/rona-v0.1.0`).
 3. Buka browser dan buka halaman ekstensi:
    - **Google Chrome:** ketik `chrome://extensions` di address bar
@@ -60,7 +60,7 @@ Rona didistribusikan sebagai rilis open-source GitHub yang dapat dipasang langsu
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/armandhabib/rona.git
+git clone https://github.com/4rmnd/rona.git
 cd rona
 
 # 2. Install dependencies

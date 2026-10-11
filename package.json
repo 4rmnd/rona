@@ -21,6 +21,14 @@
   ],
   "author": "Armand Habib Bachtiar",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/4rmnd/rona.git"
+  },
+  "homepage": "https://github.com/4rmnd/rona#readme",
+  "bugs": {
+    "url": "https://github.com/4rmnd/rona/issues"
+  },
   "devDependencies": {
     "@types/chrome": "^0.0.280",
     "@types/node": "^22.10.1",

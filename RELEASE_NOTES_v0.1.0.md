@@ -54,4 +54,4 @@ Rona dibuat dengan fokus utama pada stabilitas: visual tetap estetik dan sinemat
 
 - Saat ini baru mendukung **YouTube desktop watch page**. Belum mendukung YouTube Shorts, Music, embeds, maupun browser mobile.
 - Hasil performa bisa berbeda antar perangkat dan spesifikasi hardware.
-- Kami mengundang 1–2 rekan penguji untuk mencoba di perangkat/laptop berbeda guna memeriksa kompatibilitas dan melaporkan isu melalui [GitHub Issues](https://github.com/armandhabib/rona/issues).
+- Kami mengundang 1–2 rekan penguji untuk mencoba di perangkat/laptop berbeda guna memeriksa kompatibilitas dan melaporkan isu melalui [GitHub Issues](https://github.com/4rmnd/rona/issues).
