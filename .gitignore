@@ -7,13 +7,27 @@ dist/
 release/
 *.zip
 
-# Cache and temporary
-.orbit_ecc_cache/
+# Test coverage & logs
+coverage/
 *.log
 .DS_Store
 Thumbs.db
-coverage/
 
-# Subproject ignore
-/orbit/node_modules/
-/orbit/dist/
+# Agent & workspace state (Local development only)
+.agents/
+.orbit/
+.orbit_ecc_cache/
+orbit/
+orbit/**
+
+# Design references, large media & PRD drafts (Local only)
+Referensi Ide/
+*.mp4
+*PRD*.md
+Rona_PRD.md
+
+# Editor & IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
