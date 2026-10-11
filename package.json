@@ -1,6 +1,6 @@
 {
   "name": "rona",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Privacy-first ambient-light browser extension for YouTube watch pages",
   "type": "module",
   "scripts": {

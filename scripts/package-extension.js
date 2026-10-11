@@ -18,14 +18,17 @@ if (!fs.existsSync(distDir)) {
   process.exit(1);
 }
 
+const pkgJson = JSON.parse(fs.readFileSync(path.resolve(rootDir, 'package.json'), 'utf8'));
+const version = pkgJson.version || '0.1.0';
+
 fs.mkdirSync(releaseDir, { recursive: true });
-const zipPath = path.resolve(releaseDir, 'rona-v1.0.0.zip');
+const zipPath = path.resolve(releaseDir, `rona-v${version}.zip`);
 
 if (fs.existsSync(zipPath)) {
   fs.unlinkSync(zipPath);
 }
 
-console.log('📦 Packaging Rona extension into release/rona-v1.0.0.zip...');
+console.log(`📦 Packaging Rona extension into release/rona-v${version}.zip...`);
 try {
   // Using native tar with automatic zip compression format
   execSync(`tar -a -c -f "${zipPath}" -C "${distDir}" .`, { stdio: 'inherit' });
