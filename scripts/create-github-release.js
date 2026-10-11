@@ -11,8 +11,11 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 const repo = '4rmnd/rona';
-const tagName = 'v0.1.0';
-const releaseTitle = 'Rona v0.1.0 — Initial Release';
+
+const pkgJson = JSON.parse(fs.readFileSync(path.resolve(rootDir, 'package.json'), 'utf8'));
+const version = pkgJson.version || '0.1.1';
+const tagName = `v${version}`;
+const releaseTitle = `Rona v${version}`;
 
 function getGitHubToken() {
   try {
@@ -47,10 +50,10 @@ async function publishRelease() {
   };
 
   // Read release body
-  const notesPath = path.resolve(rootDir, 'RELEASE_NOTES_v0.1.0.md');
+  const notesPath = path.resolve(rootDir, `RELEASE_NOTES_v${version}.md`);
   const releaseBody = fs.existsSync(notesPath)
     ? fs.readFileSync(notesPath, 'utf8')
-    : 'Initial release of Rona ambient light extension.';
+    : `Release notes for Rona v${version}.`;
 
   // Check if release already exists
   let release;
@@ -97,14 +100,15 @@ async function publishRelease() {
     console.log(`✅ Release created successfully: ${release.html_url}`);
   }
 
-  // Upload release asset rona-v0.1.0.zip
-  const zipPath = path.resolve(rootDir, 'release/rona-v0.1.0.zip');
+  // Upload release asset
+  const zipPath = path.resolve(rootDir, `release/rona-v${version}.zip`);
   if (!fs.existsSync(zipPath)) {
-    throw new Error(`Asset file ${zipPath} not found.`);
+    throw new Error(`Asset file ${zipPath} not found. Run npm run package first.`);
   }
 
   const zipBuffer = fs.readFileSync(zipPath);
-  const assetName = 'rona-v0.1.0.zip';
+  const assetName = `rona-v${version}.zip`;
+
 
   // Check if asset already exists on this release
   if (Array.isArray(release.assets)) {

@@ -1,9 +1,9 @@
 # Rona
 
-[![Release: v0.1.0](https://img.shields.io/badge/Release-v0.1.0-amber.svg)](https://github.com/4rmnd/rona/releases)
+[![Release: v0.1.1](https://img.shields.io/badge/Release-v0.1.1-amber.svg)](https://github.com/4rmnd/rona/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-success.svg)](./public/manifest.json)
-[![Tests: 30 passed](https://img.shields.io/badge/Tests-30%20passed-emerald.svg)](./tests/)
+[![Tests: 38 passed](https://img.shields.io/badge/Tests-38%20passed-emerald.svg)](./tests/)
 
 Rona is a lightweight browser extension that adds a soft, dynamic ambient glow around YouTube videos on desktop Chrome and Brave.
 
@@ -53,7 +53,7 @@ Rona is distributed directly as an open-source build that you can install in sec
 
 ### Option 1: Install from Release ZIP (Recommended)
 
-1. Download **`rona-v0.1.0.zip`** from the [GitHub Releases](https://github.com/4rmnd/rona/releases) page.
+1. Download **`rona-v0.1.1.zip`** from the [GitHub Releases](https://github.com/4rmnd/rona/releases) page.
 2. Unzip the file to a folder on your computer (for example, in your `Downloads` folder).
 3. Open your browser and go to the extensions management page:
    - **Chrome:** `chrome://extensions`
@@ -85,7 +85,8 @@ Then go to `chrome://extensions`, click **Load unpacked**, and choose the `dist/
 
 ## Shortcuts and Settings
 
-- **Toggle shortcut:** Press `Alt + Shift + R` on any YouTube watch page. To change this shortcut, visit `chrome://extensions/shortcuts` in your browser.
+- **Toggle shortcut:** Press `Alt + R` or `Alt + Shift + R` on any YouTube watch page. On Windows, `Alt + R` avoids conflicts with the system keyboard layout switcher.
+
 - **Popup menu:** Click the Rona icon in your browser toolbar to toggle the effect, switch profiles, or view the active adaptive tier.
 - **Settings page:** Right-click the extension icon and select **Options** (or click Settings in the popup) to customize visual sliders and inspect live render metrics.
 
